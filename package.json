@@ -1,0 +1,26 @@
+{
+  "name": "prisma-skipduplicates-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "run": "node scripts/run-all.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrfm1623/prisma-skipduplicates-test.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/hrfm1623/prisma-skipduplicates-test/issues"
+  },
+  "homepage": "https://github.com/hrfm1623/prisma-skipduplicates-test#readme",
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "prisma": "^6.19.0"
+  }
+}
