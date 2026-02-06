@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, beforeEach, test } from "node:test";
+import { Prisma } from "@prisma/client";
 import { createPrisma } from "../scripts/prisma-client";
 import {
   ACTIVE_POST_TITLE,
@@ -231,4 +232,221 @@ test("create/update still work with soft-delete scope", async () => {
     data: { name: "Runtime User Updated" },
   });
   assert.equal(updated.name, "Runtime User Updated");
+});
+
+test("update with include returns scoped relations by default", async () => {
+  const activeUser = await prisma.user.findFirstOrThrow({
+    where: { email: ACTIVE_USER_EMAIL },
+  });
+
+  const updated = await prisma.user.update({
+    where: { id: activeUser.id },
+    data: { name: "Updated Name" },
+    include: { posts: { orderBy: { id: "asc" } } },
+  });
+
+  assert.equal(updated.name, "Updated Name");
+  assert.equal(updated.posts.length, 1);
+  assert.equal(updated.posts[0].title, ACTIVE_POST_TITLE);
+
+  const updatedWithDeleted = await prisma.withDeleted().user.update({
+    where: { id: activeUser.id },
+    data: { name: "Updated Again" },
+    include: { posts: { orderBy: { id: "asc" } } },
+  });
+
+  assert.equal(updatedWithDeleted.posts.length, 2);
+  assert.equal(updatedWithDeleted.posts[1].title, DELETED_POST_TITLE);
+});
+
+test("create with include returns scoped relations by default", async () => {
+  const created = await prisma.user.create({
+    data: {
+      email: "include-test@example.com",
+      name: "Include Test User",
+      posts: {
+        create: [
+          { title: "Visible Post", content: "visible" },
+          { title: "Hidden Post", content: "hidden", deletedAt: new Date() },
+        ],
+      },
+    },
+    include: { posts: { orderBy: { id: "asc" } } },
+  });
+
+  assert.equal(created.posts.length, 1);
+  assert.equal(created.posts[0].title, "Visible Post");
+
+  const createdWithDeleted = await prisma.withDeleted().user.findUniqueOrThrow({
+    where: { id: created.id },
+    include: { posts: { orderBy: { id: "asc" } } },
+  });
+  assert.equal(createdWithDeleted.posts.length, 2);
+});
+
+test("upsert scopes include but NOT where clause (known limitation)", async () => {
+  // upsert with an active user: include is scoped, so only active posts are returned
+  const upserted = await prisma.user.upsert({
+    where: { email: ACTIVE_USER_EMAIL },
+    update: { name: "Upserted Active" },
+    create: { email: ACTIVE_USER_EMAIL, name: "Created Active" },
+    include: { posts: true },
+  });
+
+  assert.equal(upserted.name, "Upserted Active");
+  assert.equal(upserted.posts.length, 1);
+  assert.equal(upserted.posts[0].title, ACTIVE_POST_TITLE);
+
+  // upsert with a non-existent email: falls through to create
+  const upsertedNew = await prisma.user.upsert({
+    where: { email: "upsert-new@example.com" },
+    update: { name: "Should Not Happen" },
+    create: { email: "upsert-new@example.com", name: "Newly Created" },
+  });
+  assert.equal(upsertedNew.name, "Newly Created");
+
+  // KNOWN LIMITATION: upsert's where clause is NOT scoped by deletedAt.
+  // Because "upsert" is not in ROOT_SCOPED_OPERATIONS, the soft-deleted user
+  // is still found by Prisma's internal unique lookup, causing the update path
+  // to execute instead of the create path.
+  const upsertDeleted = await prisma.user.upsert({
+    where: { email: DELETED_USER_EMAIL },
+    update: { name: "Updated Deleted User" },
+    create: { email: DELETED_USER_EMAIL, name: "Re-created" },
+  });
+  assert.equal(upsertDeleted.name, "Updated Deleted User");
+});
+
+test("sequential $transaction applies default soft-delete scope", async () => {
+  const [users, userCount] = await prisma.$transaction([
+    prisma.user.findMany({ orderBy: { id: "asc" } }),
+    prisma.user.count(),
+  ]);
+
+  assert.equal(users.length, 2);
+  assert.ok(users.every((u) => u.deletedAt === null));
+  assert.equal(userCount, 2);
+});
+
+test("sequential $transaction with withDeleted breaks PrismaPromise (known limitation)", async () => {
+  // KNOWN LIMITATION: The Proxy created by withDeleted() wraps PrismaPromise
+  // return values in a regular Promise via `(async () => await result)()`.
+  // Prisma's sequential $transaction requires PrismaPromise instances in the
+  // array, so passing proxied promises causes a runtime error.
+  try {
+    await prisma.withDeleted().$transaction([
+      prisma.withDeleted().user.findMany({ orderBy: { id: "asc" } }),
+      prisma.withDeleted().user.count(),
+    ]);
+    assert.fail("Expected error was not thrown");
+  } catch (err) {
+    assert.ok(err instanceof Error);
+    assert.match(err.message, /Prisma Client promises/);
+  }
+});
+
+test("interactive $transaction propagates soft-delete context", async () => {
+  const result = await prisma.$transaction(async (tx) => {
+    const users = await tx.user.findMany({ orderBy: { id: "asc" } });
+    const count = await tx.user.count();
+    return { users, count };
+  });
+
+  assert.equal(result.users.length, 2);
+  assert.ok(result.users.every((u) => u.deletedAt === null));
+  assert.equal(result.count, 2);
+
+  const withDeletedResult = await prisma.withDeleted().$transaction(async (tx: Prisma.TransactionClient) => {
+    const users = await tx.user.findMany({ orderBy: { id: "asc" } });
+    const count = await tx.user.count();
+    return { users, count };
+  });
+
+  assert.equal(withDeletedResult.users.length, 3);
+  assert.equal(withDeletedResult.count, 3);
+});
+
+test("concurrent requests have isolated soft-delete context", async () => {
+  const [defaultResult, withDeletedResult] = await Promise.all([
+    prisma.user.findMany({ orderBy: { id: "asc" } }),
+    prisma.withDeleted().user.findMany({ orderBy: { id: "asc" } }),
+  ]);
+
+  assert.equal(defaultResult.length, 2);
+  assert.ok(defaultResult.every((u) => u.deletedAt === null));
+  assert.equal(withDeletedResult.length, 3);
+
+  const results = await Promise.all(
+    Array.from({ length: 10 }, (_, i) =>
+      i % 2 === 0
+        ? prisma.user.count()
+        : prisma.withDeleted().user.count(),
+    ),
+  );
+
+  for (let i = 0; i < results.length; i++) {
+    if (i % 2 === 0) {
+      assert.equal(results[i], 2, `default scope count at index ${i}`);
+    } else {
+      assert.equal(results[i], 3, `withDeleted count at index ${i}`);
+    }
+  }
+});
+
+test("nested connectOrCreate in update respects soft-delete scope", async () => {
+  const activeUser = await prisma.user.findFirstOrThrow({
+    where: { email: ACTIVE_USER_EMAIL },
+  });
+
+  const updated = await prisma.user.update({
+    where: { id: activeUser.id },
+    data: {
+      posts: {
+        connectOrCreate: {
+          where: { id: 999999 },
+          create: { title: "ConnectOrCreate Post", content: "test" },
+        },
+      },
+    },
+    include: { posts: { orderBy: { id: "asc" } } },
+  });
+
+  assert.equal(updated.posts.length, 2);
+  assert.ok(updated.posts.some((p) => p.title === "ConnectOrCreate Post"));
+  assert.ok(updated.posts.every((p) => p.deletedAt === null));
+});
+
+test("model without deletedAt is unaffected by soft-delete extension", async () => {
+  await prisma.tag.deleteMany({});
+
+  const created = await prisma.tag.create({ data: { name: "TypeScript" } });
+  await prisma.tag.create({ data: { name: "Prisma" } });
+  await prisma.tag.create({ data: { name: "Node" } });
+
+  // findMany returns all tags (no deletedAt filtering)
+  const allTags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
+  assert.equal(allTags.length, 3);
+
+  // findUnique works normally
+  const found = await prisma.tag.findUnique({ where: { name: "TypeScript" } });
+  assert.ok(found);
+  assert.equal(found.id, created.id);
+
+  // count works normally
+  const count = await prisma.tag.count();
+  assert.equal(count, 3);
+
+  // delete is a real hard delete (no soft-delete transformation)
+  await prisma.tag.delete({ where: { name: "Node" } });
+  const afterDelete = await prisma.tag.findMany();
+  assert.equal(afterDelete.length, 2);
+
+  // deleted tag is truly gone, even with withDeleted
+  const withDeletedTags = await prisma.withDeleted().tag.findMany();
+  assert.equal(withDeletedTags.length, 2);
+
+  // deleteMany is also a real hard delete
+  await prisma.tag.deleteMany({});
+  const afterDeleteMany = await prisma.tag.count();
+  assert.equal(afterDeleteMany, 0);
 });

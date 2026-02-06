@@ -26,3 +26,9 @@ model Post {
   authorId Int
   author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}

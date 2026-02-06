@@ -66,5 +66,13 @@ await prisma.hardDelete().user.delete({ where: { id } }); // hard delete
 
 ## 7. 性能上の推奨
 
-- SHOULD: `deletedAt` を使うモデルにはインデックスを検討する（例: `authorId + deletedAt`）。
+- MUST: `deletedAt` を持つモデルには `deletedAt` のインデックスを貼る。全読み取りクエリに `WHERE deletedAt IS NULL` が暗黙的に追加されるため、インデックスがなければテーブルスキャンが発生する。
+  - 単体インデックス: 最低限 `@@index([deletedAt])` を付与する。
+  - 複合インデックス: 頻出クエリに合わせて `@@index([deletedAt, authorId])` のように先頭に `deletedAt` を含める。
+  - ユニーク制約との併用: ソフトデリート済みレコードとの衝突を防ぐ必要がある場合は `@@unique([email, deletedAt])` のような複合ユニークを検討する。
 - SHOULD: 大量データの画面/APIでは `withDeleted()` を常用しない。
+
+## 8. 既知の制約
+
+- `upsert` の `where` 句にはソフトデリートスコープが適用されない。ソフトデリート済みレコードの unique フィールドに対して `upsert` すると、create ではなく update が実行される。
+- `withDeleted()` / `hardDelete()` は配列形式の `$transaction([...])` と併用できない。Proxy が `PrismaPromise` を通常の `Promise` に変換するため。コールバック形式の `$transaction(async (tx) => { ... })` を使うこと。
