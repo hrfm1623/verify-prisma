@@ -470,9 +470,14 @@ function extendWithSoftDelete(baseClient: PrismaClient) {
     });
 }
 
-export function createPrisma() {
-  const baseClient = new PrismaClient();
-  return extendWithSoftDelete(baseClient);
-}
+type InternalClient = ReturnType<typeof extendWithSoftDelete>;
 
-export type AppPrismaClient = ReturnType<typeof createPrisma>;
+export type AppPrismaClient = InternalClient & {
+  withDeleted(): AppPrismaClient;
+  hardDelete(): AppPrismaClient;
+};
+
+export function createPrisma(): AppPrismaClient {
+  const baseClient = new PrismaClient();
+  return extendWithSoftDelete(baseClient) as AppPrismaClient;
+}

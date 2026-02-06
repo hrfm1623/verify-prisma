@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, beforeEach, test } from "node:test";
+import { Prisma } from "@prisma/client";
 import { createPrisma } from "../scripts/prisma-client";
 import {
   ACTIVE_POST_TITLE,
@@ -355,7 +356,7 @@ test("interactive $transaction propagates soft-delete context", async () => {
   assert.ok(result.users.every((u) => u.deletedAt === null));
   assert.equal(result.count, 2);
 
-  const withDeletedResult = await prisma.withDeleted().$transaction(async (tx) => {
+  const withDeletedResult = await prisma.withDeleted().$transaction(async (tx: Prisma.TransactionClient) => {
     const users = await tx.user.findMany({ orderBy: { id: "asc" } });
     const count = await tx.user.count();
     return { users, count };
