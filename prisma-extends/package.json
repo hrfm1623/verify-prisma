@@ -1,0 +1,23 @@
+{
+  "name": "prisma-extends-soft-delete-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "prisma:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:reset": "prisma db push --force-reset",
+    "seed": "tsx scripts/seed.ts",
+    "verify": "tsx scripts/verify.ts",
+    "check": "pnpm run prisma:generate && pnpm run db:push && pnpm run seed && pnpm run verify"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prisma": "^6.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
