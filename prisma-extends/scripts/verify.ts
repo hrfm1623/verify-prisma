@@ -56,7 +56,7 @@ async function main() {
     });
 
     assert.equal(withDeleted.length, 3, "withDeleted should return deleted users too");
-    const deletedUser = withDeleted.find((user) => user.email === DELETED_USER_EMAIL);
+    const deletedUser = withDeleted.find((user: any) => user.email === DELETED_USER_EMAIL);
     assert.ok(deletedUser, "deleted user should be visible via withDeleted");
     assert.notEqual(deletedUser.deletedAt, null);
 
@@ -66,7 +66,7 @@ async function main() {
     });
     assert.equal(deletedOnly.length, 1, "withDeleted should allow deletedAt filtering");
 
-    const activeUserWithDeletedPosts = withDeleted.find((user) => user.email === ACTIVE_USER_EMAIL);
+    const activeUserWithDeletedPosts = withDeleted.find((user: any) => user.email === ACTIVE_USER_EMAIL);
     assert.ok(activeUserWithDeletedPosts, "active user should exist via withDeleted");
     assert.equal(
       activeUserWithDeletedPosts.posts.length,

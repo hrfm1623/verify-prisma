@@ -1,19 +1,21 @@
 # prisma-extends soft delete playground
 
-`Prisma Client` の `extends` で、`findMany` に `deletedAt: null` を自動適用しつつ、例外的に削除済みデータも取得できることを確認する最小リポジトリです。
+`Prisma Client` の `extends` で soft delete を実装し、読み取りスコープ・例外取得・書き込み変換を検証する最小リポジトリです。
 
 ## 検証ポイント
 
-- デフォルトの `findMany` は `deletedAt: null` でスコープされる
+- デフォルトの `findMany / findFirst / findUnique / count / aggregate / groupBy` は `deletedAt: null` でスコープされる
 - `include` を使った関連取得でもデフォルトスコープが効く
-- 例外的に `prisma.withDeleted()` を使うと削除済みも取得できる
-- `findUnique` / `findFirst` / `count` / `create` / `update` / `delete` が壊れていない
+- `where` 内の relation filter (`some / every / none`) にもスコープが効く
+- `_count` の relation 件数もデフォルトでスコープされる
+- 例外的に `prisma.withDeleted()` を使うと削除済みも取得できる（他 extension を保持）
+- `delete / deleteMany` はソフトデリート (`update / updateMany`) に変換される
+- 物理削除したい場合は `prisma.hardDelete()` を使える
 
 ## 主要ファイル
 
 - `prisma/schema.prisma`
 - `scripts/prisma-client.ts`
-- `scripts/soft-delete-extension.ts`
 - `scripts/scenario.ts`
 - `scripts/seed.ts`
 - `tests/soft-delete-extension.test.ts`
@@ -41,8 +43,14 @@ const prisma = createPrisma();
 // デフォルト: deletedAt = null が入る
 await prisma.user.findMany({ include: { posts: true } });
 
+// delete はソフトデリートに変換される
+await prisma.user.delete({ where: { email: "a@example.com" } });
+
 // 例外: 削除済みを含めて取得
 await prisma.withDeleted().user.findMany({
   where: { deletedAt: { not: null } },
 });
+
+// 物理削除が必要な場合だけ使う
+await prisma.hardDelete().user.deleteMany();
 ```

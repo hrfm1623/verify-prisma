@@ -8,8 +8,8 @@ export const ACTIVE_POST_TITLE = "Active Post";
 export const DELETED_POST_TITLE = "Deleted Post";
 
 export async function resetScenarioData(prisma: AppPrismaClient): Promise<void> {
-  await prisma.withDeleted().post.deleteMany();
-  await prisma.withDeleted().user.deleteMany();
+  await prisma.hardDelete().post.deleteMany();
+  await prisma.hardDelete().user.deleteMany();
 }
 
 export async function seedScenarioData(prisma: AppPrismaClient): Promise<void> {
