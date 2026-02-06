@@ -415,3 +415,38 @@ test("nested connectOrCreate in update respects soft-delete scope", async () => 
   assert.ok(updated.posts.some((p) => p.title === "ConnectOrCreate Post"));
   assert.ok(updated.posts.every((p) => p.deletedAt === null));
 });
+
+test("model without deletedAt is unaffected by soft-delete extension", async () => {
+  await prisma.tag.deleteMany({});
+
+  const created = await prisma.tag.create({ data: { name: "TypeScript" } });
+  await prisma.tag.create({ data: { name: "Prisma" } });
+  await prisma.tag.create({ data: { name: "Node" } });
+
+  // findMany returns all tags (no deletedAt filtering)
+  const allTags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
+  assert.equal(allTags.length, 3);
+
+  // findUnique works normally
+  const found = await prisma.tag.findUnique({ where: { name: "TypeScript" } });
+  assert.ok(found);
+  assert.equal(found.id, created.id);
+
+  // count works normally
+  const count = await prisma.tag.count();
+  assert.equal(count, 3);
+
+  // delete is a real hard delete (no soft-delete transformation)
+  await prisma.tag.delete({ where: { name: "Node" } });
+  const afterDelete = await prisma.tag.findMany();
+  assert.equal(afterDelete.length, 2);
+
+  // deleted tag is truly gone, even with withDeleted
+  const withDeletedTags = await prisma.withDeleted().tag.findMany();
+  assert.equal(withDeletedTags.length, 2);
+
+  // deleteMany is also a real hard delete
+  await prisma.tag.deleteMany({});
+  const afterDeleteMany = await prisma.tag.count();
+  assert.equal(afterDeleteMany, 0);
+});
