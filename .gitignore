@@ -6,3 +6,4 @@ prisma/dev.db
 generated
 .DS_Store
 .prisma-cache
+.npm-cache

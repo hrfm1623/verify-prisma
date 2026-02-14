@@ -1,0 +1,487 @@
+{
+  "generatedAt": "2026-02-14T18:23:34.501Z",
+  "database": {
+    "provider": "postgresql",
+    "url": "postgresql://prisma:prisma@localhost:5432/prisma?connection_limit=1"
+  },
+  "config": {
+    "datasetSizes": [
+      20000,
+      100000
+    ],
+    "warmups": 3,
+    "runs": 15,
+    "writeBatchSize": 1000,
+    "insertBatchSize": 1000
+  },
+  "results": [
+    {
+      "datasetSize": 20000,
+      "scenarios": [
+        {
+          "scenario": "baseline",
+          "description": "id(primary key) のみ",
+          "indexes": [],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.39,
+              "maxMs": 1.132,
+              "avgMs": 0.716,
+              "p50Ms": 0.652,
+              "p95Ms": 1.048
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 1.093,
+              "maxMs": 1.613,
+              "avgMs": 1.248,
+              "p50Ms": 1.183,
+              "p95Ms": 1.538
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 1.328,
+              "maxMs": 1.599,
+              "avgMs": 1.436,
+              "p50Ms": 1.429,
+              "p95Ms": 1.531
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 3.486,
+              "maxMs": 4.019,
+              "avgMs": 3.662,
+              "p50Ms": 3.615,
+              "p95Ms": 4.008,
+              "resultAvg": 50,
+              "resultMin": 50,
+              "resultMax": 50
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 16.879,
+              "maxMs": 17.671,
+              "avgMs": 17.263,
+              "p50Ms": 17.227,
+              "p95Ms": 17.665,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 57927.359
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.031,
+              "executionTimeMs": 0.524
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.035,
+              "executionTimeMs": 0.983
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.016,
+              "executionTimeMs": 1.244
+            }
+          }
+        },
+        {
+          "scenario": "selective_indexes",
+          "description": "選択性が高い列だけ index",
+          "indexes": [
+            "CREATE INDEX IF NOT EXISTS \"idx_br_email\" ON \"BenchmarkRecord\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_tenant_status\" ON \"BenchmarkRecord\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_email\" ON \"BenchmarkInsert\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_tenant_status\" ON \"BenchmarkInsert\" (\"tenantId\",\"status\")"
+          ],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.303,
+              "maxMs": 0.606,
+              "avgMs": 0.377,
+              "p50Ms": 0.363,
+              "p95Ms": 0.426
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 0.261,
+              "maxMs": 0.405,
+              "avgMs": 0.329,
+              "p50Ms": 0.328,
+              "p95Ms": 0.374
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 0.947,
+              "maxMs": 1.211,
+              "avgMs": 1.035,
+              "p50Ms": 1.008,
+              "p95Ms": 1.174
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 2.545,
+              "maxMs": 3.66,
+              "avgMs": 2.878,
+              "p50Ms": 2.851,
+              "p95Ms": 3.2,
+              "resultAvg": 50,
+              "resultMin": 50,
+              "resultMax": 50
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 18.981,
+              "maxMs": 20.499,
+              "avgMs": 19.63,
+              "p50Ms": 19.652,
+              "p95Ms": 19.955,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 50942.435
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.033,
+              "executionTimeMs": 0.03
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.033,
+              "executionTimeMs": 0.121
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.019,
+              "executionTimeMs": 1.158
+            }
+          }
+        },
+        {
+          "scenario": "over_indexed",
+          "description": "低選択性や用途不明の列にも追加",
+          "indexes": [
+            "CREATE INDEX IF NOT EXISTS \"idx_br_email\" ON \"BenchmarkRecord\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_tenant_status\" ON \"BenchmarkRecord\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_status\" ON \"BenchmarkRecord\" (\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_score\" ON \"BenchmarkRecord\" (\"score\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_created_at\" ON \"BenchmarkRecord\" (\"createdAt\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_email\" ON \"BenchmarkInsert\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_tenant_status\" ON \"BenchmarkInsert\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_status\" ON \"BenchmarkInsert\" (\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_score\" ON \"BenchmarkInsert\" (\"score\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_created_at\" ON \"BenchmarkInsert\" (\"createdAt\")"
+          ],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.326,
+              "maxMs": 0.58,
+              "avgMs": 0.415,
+              "p50Ms": 0.409,
+              "p95Ms": 0.525
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 0.304,
+              "maxMs": 0.413,
+              "avgMs": 0.354,
+              "p50Ms": 0.344,
+              "p95Ms": 0.408
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 0.891,
+              "maxMs": 1.237,
+              "avgMs": 0.992,
+              "p50Ms": 0.934,
+              "p95Ms": 1.235
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 3.186,
+              "maxMs": 3.783,
+              "avgMs": 3.456,
+              "p50Ms": 3.432,
+              "p95Ms": 3.757,
+              "resultAvg": 50,
+              "resultMin": 50,
+              "resultMax": 50
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 19.915,
+              "maxMs": 38.639,
+              "avgMs": 21.907,
+              "p50Ms": 20.232,
+              "p95Ms": 24.963,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 45647.51
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.041,
+              "executionTimeMs": 0.028
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.029,
+              "executionTimeMs": 0.112
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.022,
+              "executionTimeMs": 1.152
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasetSize": 100000,
+      "scenarios": [
+        {
+          "scenario": "baseline",
+          "description": "id(primary key) のみ",
+          "indexes": [],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.958,
+              "maxMs": 4.827,
+              "avgMs": 2.929,
+              "p50Ms": 2.704,
+              "p95Ms": 4.725
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 4.961,
+              "maxMs": 5.49,
+              "avgMs": 5.208,
+              "p50Ms": 5.143,
+              "p95Ms": 5.449
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 5.904,
+              "maxMs": 6.842,
+              "avgMs": 6.307,
+              "p50Ms": 6.188,
+              "p95Ms": 6.762
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 7.491,
+              "maxMs": 8.383,
+              "avgMs": 7.828,
+              "p50Ms": 7.762,
+              "p95Ms": 8.144,
+              "resultAvg": 250,
+              "resultMin": 250,
+              "resultMax": 250
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 16.849,
+              "maxMs": 19.793,
+              "avgMs": 17.676,
+              "p50Ms": 17.572,
+              "p95Ms": 18.632,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 56573.885
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.032,
+              "executionTimeMs": 2.976
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.062,
+              "executionTimeMs": 5.21
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.03,
+              "executionTimeMs": 6.497
+            }
+          }
+        },
+        {
+          "scenario": "selective_indexes",
+          "description": "選択性が高い列だけ index",
+          "indexes": [
+            "CREATE INDEX IF NOT EXISTS \"idx_br_email\" ON \"BenchmarkRecord\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_tenant_status\" ON \"BenchmarkRecord\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_email\" ON \"BenchmarkInsert\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_tenant_status\" ON \"BenchmarkInsert\" (\"tenantId\",\"status\")"
+          ],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.34,
+              "maxMs": 0.462,
+              "avgMs": 0.385,
+              "p50Ms": 0.378,
+              "p95Ms": 0.461
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 0.44,
+              "maxMs": 0.596,
+              "avgMs": 0.498,
+              "p50Ms": 0.484,
+              "p95Ms": 0.557
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 3.674,
+              "maxMs": 5.165,
+              "avgMs": 4.149,
+              "p50Ms": 4.058,
+              "p95Ms": 4.843
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 2.886,
+              "maxMs": 4.386,
+              "avgMs": 3.493,
+              "p50Ms": 3.401,
+              "p95Ms": 4.109,
+              "resultAvg": 250,
+              "resultMin": 250,
+              "resultMax": 250
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 18.706,
+              "maxMs": 37.713,
+              "avgMs": 20.851,
+              "p50Ms": 19.635,
+              "p95Ms": 22.967,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 47959.33
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.041,
+              "executionTimeMs": 0.081
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.037,
+              "executionTimeMs": 0.453
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.021,
+              "executionTimeMs": 5.728
+            }
+          }
+        },
+        {
+          "scenario": "over_indexed",
+          "description": "低選択性や用途不明の列にも追加",
+          "indexes": [
+            "CREATE INDEX IF NOT EXISTS \"idx_br_email\" ON \"BenchmarkRecord\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_tenant_status\" ON \"BenchmarkRecord\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_status\" ON \"BenchmarkRecord\" (\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_score\" ON \"BenchmarkRecord\" (\"score\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_br_created_at\" ON \"BenchmarkRecord\" (\"createdAt\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_email\" ON \"BenchmarkInsert\" (\"email\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_tenant_status\" ON \"BenchmarkInsert\" (\"tenantId\",\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_status\" ON \"BenchmarkInsert\" (\"status\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_score\" ON \"BenchmarkInsert\" (\"score\")",
+            "CREATE INDEX IF NOT EXISTS \"idx_bi_created_at\" ON \"BenchmarkInsert\" (\"createdAt\")"
+          ],
+          "metrics": {
+            "pointReadByEmail": {
+              "samples": 15,
+              "minMs": 0.322,
+              "maxMs": 0.633,
+              "avgMs": 0.428,
+              "p50Ms": 0.414,
+              "p95Ms": 0.61
+            },
+            "selectiveReadByTenantStatus": {
+              "samples": 15,
+              "minMs": 0.458,
+              "maxMs": 0.598,
+              "avgMs": 0.537,
+              "p50Ms": 0.54,
+              "p95Ms": 0.575
+            },
+            "lowSelectivityReadByStatus": {
+              "samples": 15,
+              "minMs": 3.46,
+              "maxMs": 4.419,
+              "avgMs": 3.827,
+              "p50Ms": 3.75,
+              "p95Ms": 4.282
+            },
+            "selectiveUpdateByTenantStatus": {
+              "samples": 15,
+              "minMs": 5.002,
+              "maxMs": 7.922,
+              "avgMs": 6.155,
+              "p50Ms": 6.036,
+              "p95Ms": 7.399,
+              "resultAvg": 250,
+              "resultMin": 250,
+              "resultMax": 250
+            },
+            "createMany": {
+              "samples": 15,
+              "minMs": 20.118,
+              "maxMs": 40.097,
+              "avgMs": 21.873,
+              "p50Ms": 20.511,
+              "p95Ms": 21.182,
+              "resultAvg": 1000,
+              "resultMin": 1000,
+              "resultMax": 1000,
+              "rowsPerSec": 45718.466
+            }
+          },
+          "explain": {
+            "pointReadByEmail": {
+              "rootNodeType": "Limit",
+              "planningTimeMs": 0.041,
+              "executionTimeMs": 0.032
+            },
+            "selectiveReadByTenantStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.027,
+              "executionTimeMs": 0.464
+            },
+            "lowSelectivityReadByStatus": {
+              "rootNodeType": "Aggregate",
+              "planningTimeMs": 0.022,
+              "executionTimeMs": 5.511
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
